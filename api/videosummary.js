@@ -63,58 +63,60 @@ router.post("/create-video-summary", async (req, res) => {
 
   try {
     // Generate speech from text using Eleven Labs API
-    const response = await axios.post(
-      `https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}`,
-      {
-        text: text,
-        model_id: "eleven_monolingual_v1",
-        voice_settings: {
-          stability: 0.5,
-          similarity_boost: 0.5,
-        },
-      },
-      {
-        headers: {
-          Accept: "audio/mpeg",
-          "Content-Type": "application/json",
-          "xi-api-key": API_KEY,
-        },
-        responseType: "arraybuffer", // Ensure response is in binary format
-      }
-    );
+    // const response = await axios.post(
+    //   `https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}`,
+    //   {
+    //     text: text,
+    //     model_id: "eleven_monolingual_v1",
+    //     voice_settings: {
+    //       stability: 0.5,
+    //       similarity_boost: 0.5,
+    //     },
+    //   },
+    //   {
+    //     headers: {
+    //       Accept: "audio/mpeg",
+    //       "Content-Type": "application/json",
+    //       "xi-api-key": API_KEY,
+    //     },
+    //     responseType: "arraybuffer", // Ensure response is in binary format
+    //   }
+    // );
 
-    // Save audio file
-    fs.writeFileSync(audioFile, Buffer.from(response.data));
-    console.log("Audio file saved successfully.");
+    // // Save audio file
+    // fs.writeFileSync(audioFile, Buffer.from(response.data));
+    // console.log("Audio file saved successfully.");
 
-    // // Generate video with text overlay
-    // await new Promise((resolve, reject) => {
-    //   ffmpeg()
-    //     .setFfmpegPath(ffmpegStatic)
-    //     .input("color=c=black:s=640x360:d=10") // Placeholder for video
-    //     .input(audioFile)
-    //     .audioCodec("aac")
-    //     .videoCodec("libx264")
-    //     .outputOptions([
-    //       "-vf drawtext=text='Summary':fontcolor=white:fontsize=24:x=(w-tw)/2:y=(h-th)/2",
-    //       "-pix_fmt yuv420p",
-    //     ])
-    //     .on("end", () => {
-    //       console.log("Video generation complete");
-    //       fs.unlinkSync(audioFile); // Clean up audio file
-    //       resolve();
-    //     })
-    //     .on("error", (err) => {
-    //       console.error("Error during video generation:", err);
-    //       reject(err);
-    //     })
-    //     .save(videoFile);
-    // });
+    // Generate video with text overlay
+    await new Promise((resolve, reject) => {
+      ffmpeg()
+        .setFfmpegPath(ffmpegStatic)
+        .input("color=s=640x360:d=10") // Correct input to generate a black video
+        .input(audioFile) // Add audio file
+        .audioCodec("aac")
+        .videoCodec("libx264")
+        .outputOptions([
+          "-vf",
+          "drawtext=text='Summary':fontfile='C\\:/Windows/Fonts/arial.ttf':fontcolor=white:fontsize=24:x=(w-tw)/2:y=(h-th)/2",
+          "-pix_fmt",
+          "yuv420p",
+        ])
+        .on("end", () => {
+          console.log("Video generation complete");
+          fs.unlinkSync(audioFile); // Clean up audio file
+          resolve();
+        })
+        .on("error", (err) => {
+          console.error("Error during video generation:", err);
+          reject(err);
+        })
+        .save(videoFile);
+    });
 
-    // // Wait for video file to be ready
-    // await waitForVideoCreation(videoFile);
+    // Wait for video file to be ready
+    await waitForVideoCreation(videoFile);
 
-    // res.json({ videoUrl: `https://your-server-domain.com/${videoFile}` });
+    res.json({ videoUrl: `http://localhost:3000/${videoFile}` });
   } catch (error) {
     console.error("Error creating video summary:", error);
     res.status(500).json({ error: "Failed to create video summary" });
