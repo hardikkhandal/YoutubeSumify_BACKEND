@@ -36,7 +36,7 @@ function waitForVideoCreation(videoFile) {
 }
 
 // Endpoint to create video summary
-router.post("/create-video-summary", async (req, res) => {
+router.post("/video", async (req, res) => {
   console.log("Request body:", req.body);
   const { videoUrl } = req.body;
   console.log("Request received to summarize video:", videoUrl);
@@ -45,16 +45,18 @@ router.post("/create-video-summary", async (req, res) => {
   const transcript = await YoutubeTranscript.fetchTranscript(videoId);
 
   // Extract only the text from each transcript entry
-  const text = transcript.map((entry) => entry.text).join(" ");
+  const overlayText = transcript.map((entry) => entry.text).join(" ");
 
-  if (!text) {
+  if (!overlayText) {
     return res.status(400).json({ error: "Text is required" });
   }
 
   // Define file paths directly
   const audioDir = "audio";
+  const backgroundImage = `${audioDir}/background.jpg`;
   const audioFile = `${audioDir}/output.mp3`;
   const videoFile = `${audioDir}/summary.mp4`;
+  const fontFile = "/arial.ttf";
 
   // Ensure the audio directory exists or create it if it doesn't
   if (!fs.existsSync(audioDir)) {
@@ -63,47 +65,66 @@ router.post("/create-video-summary", async (req, res) => {
 
   try {
     // Generate speech from text using Eleven Labs API
-    // const response = await axios.post(
-    //   `https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}`,
-    //   {
-    //     text: text,
-    //     model_id: "eleven_monolingual_v1",
-    //     voice_settings: {
-    //       stability: 0.5,
-    //       similarity_boost: 0.5,
-    //     },
-    //   },
-    //   {
-    //     headers: {
-    //       Accept: "audio/mpeg",
-    //       "Content-Type": "application/json",
-    //       "xi-api-key": API_KEY,
-    //     },
-    //     responseType: "arraybuffer", // Ensure response is in binary format
-    //   }
-    // );
+    const response = await axios.post(
+      `https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}`,
+      {
+        text: overlayText,
+        model_id: "eleven_monolingual_v1",
+        voice_settings: {
+          stability: 0.5,
+          similarity_boost: 0.5,
+        },
+      },
+      {
+        headers: {
+          Accept: "audio/mpeg",
+          "Content-Type": "application/json",
+          "xi-api-key": API_KEY,
+        },
+        responseType: "arraybuffer", // Ensure response is in binary format
+      }
+    );
 
-    // // Save audio file
-    // fs.writeFileSync(audioFile, Buffer.from(response.data));
-    // console.log("Audio file saved successfully.");
+    // Save audio file
+    fs.writeFileSync(audioFile, Buffer.from(response.data));
+    console.log("Audio file saved successfully.");
+
+    function getAudioDuration(filePath) {
+      return new Promise((resolve, reject) => {
+        ffmpeg.ffprobe(filePath, (err, metadata) => {
+          if (err) {
+            reject(err);
+          } else {
+            const duration = metadata.format.duration;
+            resolve(duration);
+          }
+        });
+      });
+    }
+
+    const audioDuration = await getAudioDuration(audioFile);
 
     // Generate video with text overlay
     await new Promise((resolve, reject) => {
       ffmpeg()
         .setFfmpegPath(ffmpegStatic)
-        .input("color=s=640x360:d=10") // Correct input to generate a black video
+        .input(backgroundImage) // Input background image
+        .loop(audioDuration) // Loop the image to match audio duration
         .input(audioFile) // Add audio file
         .audioCodec("aac")
+        .audioBitrate("192k")
         .videoCodec("libx264")
         .outputOptions([
           "-vf",
-          "drawtext=text='Summary':fontfile='C\\:/Windows/Fonts/arial.ttf':fontcolor=white:fontsize=24:x=(w-tw)/2:y=(h-th)/2",
-          "-pix_fmt",
-          "yuv420p",
+          `drawtext=text='${overlayText.replace(
+            /\n/g,
+            "\\n"
+          )}':fontfile='${fontFile}':fontcolor=white:fontsize=8:box=1:boxcolor=black@0.5:boxborderw=10:x=(w-text_w)/2:y=(h-text_h)/2:line_spacing=5`,
+          "-shortest", // Ensures the output is cut to the shortest input (audio duration)
         ])
         .on("end", () => {
           console.log("Video generation complete");
-          fs.unlinkSync(audioFile); // Clean up audio file
+          // fs.unlinkSync(audioFile); // Clean up audio file
           resolve();
         })
         .on("error", (err) => {
