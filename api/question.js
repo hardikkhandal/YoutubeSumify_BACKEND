@@ -1,5 +1,5 @@
 const express = require("express");
-const { getTranscript } = require("youtube-transcript-api");
+const { YoutubeTranscript } = require("youtube-transcript");
 const { generateText } = require("../services/groqServices");
 const { extractVideoId } = require("../helpers/extractVideoId");
 
@@ -12,13 +12,16 @@ router.post("/question", async (req, res) => {
 
   try {
     const videoId = extractVideoId(videoUrl);
-    const transcript = await getTranscript(videoId, { timeout: 60000 });
+    const transcript = await YoutubeTranscript.fetchTranscript(videoId);
+
+    // Extract only the text from each transcript entry
     const transcriptText = transcript.map((entry) => entry.text).join(" ");
 
     const prompt = `${message} from the youtube url ${videoUrl} and having transcript ${transcriptText}. Only tell answer in shortest sentence`;
     const answer = await generateText("llama3-8b-8192", prompt);
 
     console.log(answer);
+    console.log(videoUrl);
     res.json({ answer: answer.trim() });
   } catch (error) {
     console.error("Error generating answer:", error.message);

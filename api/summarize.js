@@ -1,5 +1,5 @@
 const express = require("express");
-const { getTranscript } = require("youtube-transcript-api");
+const { YoutubeTranscript } = require("youtube-transcript");
 const { generateText } = require("../services/groqServices");
 const { extractVideoId } = require("../helpers/extractVideoId");
 
@@ -14,13 +14,18 @@ router.post("/summarize", async (req, res) => {
     console.log("Request received to summarize video:", videoUrl);
     const videoId = extractVideoId(videoUrl);
 
-    const transcript = await getTranscript(videoId, { timeout: 60000 });
+    const transcript = await YoutubeTranscript.fetchTranscript(videoId);
+
+    // Extract only the text from each transcript entry
     const transcriptText = transcript.map((entry) => entry.text).join(" ");
     console.log("Fetched transcript:", transcriptText);
 
     const prompt = `Summarize the video at the following URL: ${videoUrl}. Transcript: ${transcriptText} in few words`;
+
+    // Call your generateText function with the prompt
     const summary = await generateText("llama3-8b-8192", prompt);
 
+    // Send the summary response
     res.json({ summary: summary.trim() });
   } catch (error) {
     console.error("Error summarizing video:", error.message);

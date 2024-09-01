@@ -4,9 +4,8 @@
   "description": "Backend hosted on serveless function",
   "main": "app.js",
   "scripts": {
-  "start": "node app.js"
-}
-,
+    "start": "node app.js"
+  },
   "author": "",
   "license": "ISC",
   "dependencies": {
@@ -16,6 +15,7 @@
     "groq-sdk": "^0.5.0",
     "nodemon": "^3.1.4",
     "vercel": "^34.3.0",
+    "youtube-transcript": "^1.2.1",
     "youtube-transcript-api": "^1.1.2"
   }
 }

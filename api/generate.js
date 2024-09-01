@@ -18,5 +18,3 @@ router.post("/generate", async (req, res) => {
 });
 
 module.exports = router;
-
-hehehehe;
