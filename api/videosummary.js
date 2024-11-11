@@ -10,7 +10,7 @@ const { generateText } = require("../services/groqServices");
 const { extractVideoId } = require("../helpers/extractVideoId");
 
 // Replace with your Eleven Labs API key and voice ID
-const API_KEY = "sk_463348fa85af75bd647633b9d6049d312152c9f5025763ff";
+const API_KEY = "sk_59166cd16d8ef676b0187d8d4a40aa641e6bd848a0470528  ";
 const VOICE_ID = "pMsXgVXv3BLzUgSXRplE"; // Example voice ID
 
 router.use(bodyParser.json());
